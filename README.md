@@ -1,6 +1,9 @@
 # Soyio Docs Bot
 
-GitHub Action to suggest documentation updates based on PR changes.
+GitHub Action to suggest documentation updates based on PR changes. Pair this with the indexer action running in your docs repo (e.g., `soyio-id/soyio-docs` using `soyio-id/soyio-docs-indexer-action@v1`) so the bot can query the latest embeddings.
+
+> [!NOTE]
+> Companion indexer: https://github.com/soyio-id/soyio-docs-indexer-action — keep it running in your docs repo so this bot can query fresh embeddings.
 
 ## Usage
 
@@ -17,7 +20,7 @@ jobs:
   suggest:
     runs-on: ubuntu-latest
     steps:
-      - uses: soyio/soyio-docs-bot/bot@bot-v1
+      - uses: soyio-id/soyio-docs-bot-action@v1
         with:
           pinecone_api_key: ${{ secrets.PINECONE_API_KEY }}
           pinecone_index: 'soyio-docs'
@@ -44,7 +47,7 @@ jobs:
   GEMINI_MODEL=gemini-2.5-pro
   GITHUB_TOKEN=your-token-here
   PR_NUMBER=1426
-  REPO=Soyio-id/soyio
+  REPO=soyio-id/soyio
    ```
 
 3. **Build and run**

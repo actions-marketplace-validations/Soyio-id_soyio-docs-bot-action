@@ -1,6 +1,6 @@
 {
   "name": "soyio-docs-bot",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "GitHub Action to suggest documentation updates based on PR changes",
   "main": "dist/index.js",
   "scripts": {
