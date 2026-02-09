@@ -24,7 +24,7 @@ export async function queryPinecone(
   const genai = new GoogleGenAI({ apiKey: geminiApiKey });
 
   const result = await genai.models.embedContent({
-    model: 'models/text-embedding-004',
+    model: 'models/gemini-embedding-001',
     contents: [{ parts: [{ text: query }] }]
   });
 

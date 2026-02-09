@@ -69138,7 +69138,7 @@ async function queryPinecone(apiKey, indexName, geminiApiKey, query, topK = 5) {
     // Generate query embedding
     const genai = new genai_1.GoogleGenAI({ apiKey: geminiApiKey });
     const result = await genai.models.embedContent({
-        model: 'models/text-embedding-004',
+        model: 'models/gemini-embedding-001',
         contents: [{ parts: [{ text: query }] }]
     });
     if (!result.embeddings || !result.embeddings[0]) {

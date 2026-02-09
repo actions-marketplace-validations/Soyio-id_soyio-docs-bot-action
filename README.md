@@ -27,7 +27,7 @@ jobs:
       - uses: soyio-id/soyio-docs-bot-action@v1
         with:
           pinecone_api_key: ${{ secrets.PINECONE_API_KEY }}
-          pinecone_index: 'soyio-docs'
+          pinecone_index: 'soyio-docs-v2'
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           top_k: '5'
@@ -48,7 +48,7 @@ jobs:
    ```bash
    # .env
   PINECONE_API_KEY=your-key-here
-  PINECONE_INDEX=soyio-docs
+  PINECONE_INDEX=soyio-docs-v2
   GEMINI_API_KEY=your-key-here
   GEMINI_MODEL=gemini-2.5-pro
   GITHUB_TOKEN=your-token-here
