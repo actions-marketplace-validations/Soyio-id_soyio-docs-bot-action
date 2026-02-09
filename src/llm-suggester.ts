@@ -167,13 +167,11 @@ Based on this PR, suggest documentation updates.
   console.log(rawText);
   console.log('--- END RAW RESPONSE ---\n');
 
-  // ----- Strip outer markdown fences -----
-  const jsonMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const jsonString = jsonMatch ? jsonMatch[1] : rawText;
+  // ----- Strip outer markdown fences only when they wrap full response -----
+  const jsonString = unwrapOuterJsonFence(rawText);
 
-  // ----- Sanitize: remove stray triple backticks inside strings -----
-  // Keep the JSON structure intact; just strip stray fences/whitespace and escape raw newlines inside string literals
-  const sanitized = escapeNewlinesInStrings(jsonString.replace(/```/g, '').trim());
+  // ----- Sanitize JSON text while preserving code fences in content -----
+  const sanitized = escapeNewlinesInStrings(jsonString.trim());
 
   // ----- Parse JSON with fallback extraction -----
   let parsed: LLMResponse;
@@ -181,13 +179,10 @@ Based on this PR, suggest documentation updates.
     parsed = JSON.parse(sanitized.trim());
   } catch (e) {
     console.error('Failed to parse JSON directly:', e);
-    // Try to locate the first { and last } as a last resort
-    const startIdx = sanitized.indexOf('{');
-    const endIdx = sanitized.lastIndexOf('}');
-    if (startIdx !== -1 && endIdx !== -1) {
-      const extracted = sanitized.slice(startIdx, endIdx + 1);
+    const extracted = extractFirstBalancedJsonObject(jsonString);
+    if (extracted) {
       try {
-        parsed = JSON.parse(extracted);
+        parsed = JSON.parse(escapeNewlinesInStrings(extracted));
       } catch (inner) {
         console.warn('Fallback JSON parse also failed. Returning empty response.', inner);
         return {
@@ -270,4 +265,57 @@ function escapeNewlinesInStrings(input: string): string {
   }
 
   return out;
+}
+
+function unwrapOuterJsonFence(input: string): string {
+  const trimmed = input.trim();
+  const wrappedJsonMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (!wrappedJsonMatch) {
+    return trimmed;
+  }
+  return wrappedJsonMatch[1].trim();
+}
+
+function extractFirstBalancedJsonObject(input: string): string | null {
+  let inString = false;
+  let escaped = false;
+  let depth = 0;
+  let start = -1;
+
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    switch (ch) {
+      case '"':
+        inString = true;
+        break;
+      case '{':
+        if (depth === 0) {
+          start = i;
+        }
+        depth++;
+        break;
+      case '}':
+        if (depth > 0) {
+          depth--;
+          if (depth === 0 && start !== -1) {
+            return input.slice(start, i + 1);
+          }
+        }
+        break;
+    }
+  }
+
+  return null;
 }

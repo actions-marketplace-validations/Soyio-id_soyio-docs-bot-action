@@ -90,4 +90,51 @@ Second line",
       })
     }));
   });
+
+  it('parses valid JSON that contains markdown code fences inside suggested_text', async () => {
+    const payload = {
+      impact_level: 'high',
+      summary: 'Add filtering docs',
+      suggestions: [
+        {
+          target_file: 'docs/integration-guide/disclosure/disclosure_templates.mdx',
+          target_section: 'After validation levels',
+          type: 'add',
+          rationale: 'Explain new filter fields',
+          suggested_text: [
+            'Example request:',
+            '```bash',
+            "curl -X GET 'https://api.soyio.id/api/v1/disclosure_templates?where[liveness_check]=true'",
+            '```'
+          ].join('\n'),
+          severity: 'warning'
+        }
+      ]
+    } as const;
+
+    mockGenerateContent.mockResolvedValue({
+      candidates: [
+        {
+          content: {
+            parts: [{ text: JSON.stringify(payload, null, 2) }]
+          }
+        }
+      ]
+    });
+
+    const result = await generateSuggestions(
+      'gemini-api-key',
+      'models/unit-test',
+      'Add disclosure template filters',
+      'PR body',
+      'diff content',
+      []
+    );
+
+    expect(result.impact_level).toBe('high');
+    expect(result.suggestions).toHaveLength(1);
+    expect(result.suggestions[0].severity).toBe('warning');
+    expect(result.suggestions[0].suggested_text).toContain('```bash');
+    expect(result.suggestions[0].suggested_text).toContain('where[liveness_check]=true');
+  });
 });
