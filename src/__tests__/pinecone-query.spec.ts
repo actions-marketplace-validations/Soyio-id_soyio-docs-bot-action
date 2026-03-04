@@ -89,7 +89,7 @@ describe('queryPinecone', () => {
     ]);
 
     expect(mockEmbedContent).toHaveBeenCalledWith({
-      model: 'models/text-embedding-004',
+      model: 'models/gemini-embedding-001',
       contents: [{ parts: [{ text: 'search text' }] }]
     });
     expect(mockQuery).toHaveBeenCalledWith({

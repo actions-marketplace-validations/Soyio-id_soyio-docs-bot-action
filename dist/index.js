@@ -36003,7 +36003,7 @@ exports.Impersonated = Impersonated;
 // limitations under the License.
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.JWTAccess = void 0;
-const jws = __nccwpck_require__(88247);
+const jws = __nccwpck_require__(63922);
 const util_1 = __nccwpck_require__(69177);
 const DEFAULT_HEADER = {
     alg: 'RS256',
@@ -40706,12 +40706,12 @@ module.exports = function jwa(algorithm) {
 
 /***/ }),
 
-/***/ 88247:
+/***/ 63922:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 /*global exports*/
-var SignStream = __nccwpck_require__(64967);
-var VerifyStream = __nccwpck_require__(91283);
+var SignStream = __nccwpck_require__(60414);
+var VerifyStream = __nccwpck_require__(9470);
 
 var ALGORITHMS = [
   'HS256', 'HS384', 'HS512',
@@ -40735,7 +40735,7 @@ exports.createVerify = function createVerify(opts) {
 
 /***/ }),
 
-/***/ 18928:
+/***/ 98353:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 /*global module, process*/
@@ -40797,15 +40797,15 @@ module.exports = DataStream;
 
 /***/ }),
 
-/***/ 64967:
+/***/ 60414:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 /*global module*/
 var Buffer = (__nccwpck_require__(65249).Buffer);
-var DataStream = __nccwpck_require__(18928);
+var DataStream = __nccwpck_require__(98353);
 var jwa = __nccwpck_require__(56308);
 var Stream = __nccwpck_require__(2203);
-var toString = __nccwpck_require__(85183);
+var toString = __nccwpck_require__(82176);
 var util = __nccwpck_require__(39023);
 
 function base64url(string, encoding) {
@@ -40836,7 +40836,12 @@ function jwsSign(opts) {
 }
 
 function SignStream(opts) {
-  var secret = opts.secret||opts.privateKey||opts.key;
+  var secret = opts.secret;
+  secret = secret == null ? opts.privateKey : secret;
+  secret = secret == null ? opts.key : secret;
+  if (/^hs/i.test(opts.header.alg) === true && secret == null) {
+    throw new TypeError('secret must be a string or buffer or a KeyObject')
+  }
   var secretStream = new DataStream(secret);
   this.readable = true;
   this.header = opts.header;
@@ -40882,7 +40887,7 @@ module.exports = SignStream;
 
 /***/ }),
 
-/***/ 85183:
+/***/ 82176:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 /*global module*/
@@ -40899,15 +40904,15 @@ module.exports = function toString(obj) {
 
 /***/ }),
 
-/***/ 91283:
+/***/ 9470:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 /*global module*/
 var Buffer = (__nccwpck_require__(65249).Buffer);
-var DataStream = __nccwpck_require__(18928);
+var DataStream = __nccwpck_require__(98353);
 var jwa = __nccwpck_require__(56308);
 var Stream = __nccwpck_require__(2203);
-var toString = __nccwpck_require__(85183);
+var toString = __nccwpck_require__(82176);
 var util = __nccwpck_require__(39023);
 var JWS_REGEX = /^[a-zA-Z0-9\-_]+?\.[a-zA-Z0-9\-_]+?\.([a-zA-Z0-9\-_]+)?$/;
 
@@ -40983,7 +40988,12 @@ function jwsDecode(jwsSig, opts) {
 
 function VerifyStream(opts) {
   opts = opts || {};
-  var secretOrKey = opts.secret||opts.publicKey||opts.key;
+  var secretOrKey = opts.secret;
+  secretOrKey = secretOrKey == null ? opts.publicKey : secretOrKey;
+  secretOrKey = secretOrKey == null ? opts.key : secretOrKey;
+  if (/^hs/i.test(opts.algorithm) === true && secretOrKey == null) {
+    throw new TypeError('secret must be a string or buffer or a KeyObject')
+  }
   var secretStream = new DataStream(secretOrKey);
   this.readable = true;
   this.algorithm = opts.algorithm;
@@ -68789,22 +68799,24 @@ async function run() {
         let pr;
         let files;
         try {
-            const prResponse = await octokit.rest.pulls.get({
-                owner,
-                repo: repoName,
-                pull_number: prNumber
-            });
-            const filesResponse = await octokit.rest.pulls.listFiles({
-                owner,
-                repo: repoName,
-                pull_number: prNumber
-            });
+            const [prResponse, filesResponse] = await Promise.all([
+                octokit.rest.pulls.get({
+                    owner,
+                    repo: repoName,
+                    pull_number: prNumber
+                }),
+                octokit.rest.pulls.listFiles({
+                    owner,
+                    repo: repoName,
+                    pull_number: prNumber
+                })
+            ]);
             pr = prResponse.data;
             files = filesResponse.data;
         }
         catch (apiError) {
             if (isIntegrationPermissionError(apiError)) {
-                core.error('GitHub token is missing pull request permissions. The workflow needs pull-requests: read and issues: write to read PR data and post comments.');
+                core.error('GitHub token is missing pull request permissions. The workflow needs `pull-requests: read`, `contents: read`, and `issues: write` to read PR data and post comments.');
                 throw new Error('GITHUB_TOKEN cannot access the pull request. Grant permissions: pull-requests: read, contents: read, issues: write.');
             }
             throw apiError;
@@ -69013,12 +69025,10 @@ Based on this PR, suggest documentation updates.
     console.log('\n--- RAW LLM RESPONSE ---');
     console.log(rawText);
     console.log('--- END RAW RESPONSE ---\n');
-    // ----- Strip outer markdown fences -----
-    const jsonMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/i);
-    const jsonString = jsonMatch ? jsonMatch[1] : rawText;
-    // ----- Sanitize: remove stray triple backticks inside strings -----
-    // Keep the JSON structure intact; just strip stray fences/whitespace and escape raw newlines inside string literals
-    const sanitized = escapeNewlinesInStrings(jsonString.replace(/```/g, '').trim());
+    // ----- Strip outer markdown fences only when they wrap full response -----
+    const jsonString = unwrapOuterJsonFence(rawText);
+    // ----- Sanitize JSON text while preserving code fences in content -----
+    const sanitized = escapeNewlinesInStrings(jsonString.trim());
     // ----- Parse JSON with fallback extraction -----
     let parsed;
     try {
@@ -69026,13 +69036,10 @@ Based on this PR, suggest documentation updates.
     }
     catch (e) {
         console.error('Failed to parse JSON directly:', e);
-        // Try to locate the first { and last } as a last resort
-        const startIdx = sanitized.indexOf('{');
-        const endIdx = sanitized.lastIndexOf('}');
-        if (startIdx !== -1 && endIdx !== -1) {
-            const extracted = sanitized.slice(startIdx, endIdx + 1);
+        const extracted = extractFirstBalancedJsonObject(jsonString);
+        if (extracted) {
             try {
-                parsed = JSON.parse(extracted);
+                parsed = JSON.parse(escapeNewlinesInStrings(extracted));
             }
             catch (inner) {
                 console.warn('Fallback JSON parse also failed. Returning empty response.', inner);
@@ -69106,6 +69113,55 @@ function escapeNewlinesInStrings(input) {
     }
     return out;
 }
+function unwrapOuterJsonFence(input) {
+    const trimmed = input.trim();
+    const wrappedJsonMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+    if (!wrappedJsonMatch) {
+        return trimmed;
+    }
+    return wrappedJsonMatch[1].trim();
+}
+function extractFirstBalancedJsonObject(input) {
+    let inString = false;
+    let escaped = false;
+    let depth = 0;
+    let start = -1;
+    for (let i = 0; i < input.length; i++) {
+        const ch = input[i];
+        if (inString) {
+            if (escaped) {
+                escaped = false;
+            }
+            else if (ch === '\\') {
+                escaped = true;
+            }
+            else if (ch === '"') {
+                inString = false;
+            }
+            continue;
+        }
+        switch (ch) {
+            case '"':
+                inString = true;
+                break;
+            case '{':
+                if (depth === 0) {
+                    start = i;
+                }
+                depth++;
+                break;
+            case '}':
+                if (depth > 0) {
+                    depth--;
+                    if (depth === 0 && start !== -1) {
+                        return input.slice(start, i + 1);
+                    }
+                }
+                break;
+        }
+    }
+    return null;
+}
 
 
 /***/ }),
@@ -69126,7 +69182,7 @@ async function queryPinecone(apiKey, indexName, geminiApiKey, query, topK = 5) {
     // Generate query embedding
     const genai = new genai_1.GoogleGenAI({ apiKey: geminiApiKey });
     const result = await genai.models.embedContent({
-        model: 'models/text-embedding-004',
+        model: 'models/gemini-embedding-001',
         contents: [{ parts: [{ text: query }] }]
     });
     if (!result.embeddings || !result.embeddings[0]) {
@@ -89444,7 +89500,7 @@ Object.defineProperty(exports, "__esModule", ({
 exports.GoogleToken = void 0;
 var fs = _interopRequireWildcard(__nccwpck_require__(79896));
 var _gaxios = __nccwpck_require__(96279);
-var jws = _interopRequireWildcard(__nccwpck_require__(88247));
+var jws = _interopRequireWildcard(__nccwpck_require__(63922));
 var path = _interopRequireWildcard(__nccwpck_require__(16928));
 var _util = __nccwpck_require__(39023);
 function _interopRequireWildcard(e, t) { if ("function" == typeof WeakMap) var r = new WeakMap(), n = new WeakMap(); return (_interopRequireWildcard = function _interopRequireWildcard(e, t) { if (!t && e && e.__esModule) return e; var o, i, f = { __proto__: null, "default": e }; if (null === e || "object" != _typeof(e) && "function" != typeof e) return f; if (o = t ? n : r) { if (o.has(e)) return o.get(e); o.set(e, f); } for (var _t3 in e) "default" !== _t3 && {}.hasOwnProperty.call(e, _t3) && ((i = (o = Object.defineProperty) && Object.getOwnPropertyDescriptor(e, _t3)) && (i.get || i.set) ? o(f, _t3, i) : f[_t3] = e[_t3]); return f; })(e, t); }
